@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='is_wire',
-    version='1.2.0',
+    version='1.2.1',
     description='Python implementation of application support layer.',
     long_description=open("README.md").read().strip(),
     long_description_content_type="text/markdown",
