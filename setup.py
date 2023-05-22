@@ -7,7 +7,7 @@ setup(
     long_description=open("README.md").read().strip(),
     long_description_content_type="text/markdown",
     author='labvisio',
-    author_email=['labvisio.ufes@gmail.com'],
+    author_email='labvisio.ufes@gmail.com',
     url='http://github.com/labvisio/is-wire-py',
     classifiers=[
         'Intended Audience :: Developers',
