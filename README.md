@@ -1,11 +1,12 @@
 
-# Wire
+# is-wire
+
+[![PyPI](https://img.shields.io/pypi/v/is-wire.svg?style=for-the-badge)](https://pypi.org/project/is-wire/)
+[![Build](https://img.shields.io/github/actions/workflow/status/labvisio/is-wire-py/main.yml?style=for-the-badge)](https://github.com/labvisio/is-wire-py/actions)
+[![Python suport](https://img.shields.io/pypi/pyversions/is-wire?style=for-the-badge)](https://pypi.org/project/is-wire)
+[![Downloads](https://img.shields.io/pypi/dm/is-wire?style=for-the-badge)](https://pypi.org/project/is-wire/)
 
 Pub/Sub middleware for the *is* architecture (python implementation)
-
-![PyPI](https://img.shields.io/pypi/v/is-wire.svg?label=is-wire&style=for-the-badge)
-![Travis](https://img.shields.io/travis/com/labviros/is-wire-py.svg?label=Linux&style=for-the-badge)
-![Appveyor](https://img.shields.io/appveyor/ci/felippe-mendonca/is-wire-py.svg?label=Windows&style=for-the-badge)
 
 ## Installation 
 
@@ -32,7 +33,6 @@ docker run -d --rm -p 5672:5672 -p 15672:15672 rabbitmq:3.7.6-management
 Create a channel to connect to a broker, create a subscription and subscribe to desired topics to receive messages:
 
 ```python
-from __future__ import print_function
 from is_wire.core import Channel, Subscription
 
 # Connect to the broker
@@ -133,7 +133,6 @@ provider.run() # Blocks forever processing requests
 Send a request to the RPC Server:
 
 ```python
-from __future__ import print_function
 from is_wire.core import Channel, Message, Subscription
 from google.protobuf.struct_pb2 import Struct
 import socket
@@ -155,6 +154,48 @@ try:
     print('RPC Status:', reply.status, '\nReply:', struct)
 except socket.timeout:
     print('No reply :(')
+```
+
+Multiples requests can be done throughout same client. To distinguish which reply is related to each request, you can use the `correlation_id`. This attribute is always set when a `Message` is published containing `reply_to` parameter, which means that it was a RPC request. Example below shows how to deal with it.
+
+```python
+from is_wire.core import Channel, Message, Subscription
+from google.protobuf.struct_pb2 import Struct
+import socket
+
+channel = Channel("amqp://guest:guest@localhost:5672")
+subscription = Subscription(channel)
+
+# Prepare first request
+struct = Struct()
+struct.fields["value"].number_value = 1.0
+request_1 = Message(content=struct, reply_to=subscription)
+
+# Prepare second request
+struct = Struct()
+struct.fields["value"].number_value = 2.0
+request_2 = Message(content=struct, reply_to=subscription)
+
+# Make requests
+channel.publish(request_1, topic="MyService.Increment")
+channel.publish(request_2, topic="MyService.Increment")
+
+# Wait for replies with 1.0 seconds timeout
+n_replies = 0
+while n_replies < 2:
+    try:
+        reply = channel.consume(timeout=1.0)
+        struct = reply.unpack(Struct)
+        if reply.correlation_id == request_1.correlation_id:
+            n_replies += 1
+            print('First Request\nRPC Status:', reply.status, '\nReply:', struct)
+        elif reply.correlation_id == request_2.correlation_id:
+            n_replies += 1
+            print('Second Request\nRPC Status:', reply.status, '\nReply:', struct)
+        else:
+            print('Unexpected message')
+    except socket.timeout:
+        print('No reply :(')
 ```
 
 ### Tracing messages
