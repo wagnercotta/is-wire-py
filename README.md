@@ -198,62 +198,189 @@ while n_replies < 2:
         print('No reply :(')
 ```
 
-### Tracing messages
+### Enhanced API (IsWireEnhanced)
 
-This middleware uses [opencensus](https://github.com/census-instrumentation/opencensus-python) as instrumentation library. Latest versions of opencensus released separate packages to integrate with different frameworks and tracing collector tools. When interacting with services implemented with either the C++ or Python of is-wire, we recommend to use [Zipkin](https://zipkin.apache.org/) to collect the tracing data. To do so, use the latest version of [OpenCensus Zipkin Exporter](https://github.com/census-instrumentation/opencensus-python/tree/master/contrib/opencensus-ext-zipkin).
+The `IsWireEnhanced` class provides a simplified, high-level API for common messaging patterns. It reduces boilerplate code by using type annotations to automatically configure request/reply types.
 
-Instantiate an Exporter to trace requests:
+#### Creating an enhanced connection
 
 ```python
-from is_wire.core import AsyncTransport
-from opencensus.ext.zipkin.trace_exporter import ZipkinExporter
+from is_wire.enhancement import IsWireEnhanced
 
-# Create an exporter, change values accordingly to match your zipkin server
-exporter = ZipkinExporter(
-    service_name="MyService",
-    host_name="localhost",
-    port=9411,
-    transport=AsyncTransport,
+# Connect using individual parameters
+wire = IsWireEnhanced(
+    user="guest",
+    password="guest",
+    host="localhost",
+    port=5672
 )
 ```
 
-Then create a tracer and start tracing:
+#### Creating RPC services with automatic type inference
+
+Functions registered as RPC services must have type annotations for both parameters and return types. The enhanced API automatically extracts these types:
 
 ```python
-from is_wire.core import Channel, Message, Tracer
+from is_wire.enhancement import IsWireEnhanced
+from google.protobuf.wrappers_pb2 import Int64Value, StringValue
 
-channel = Channel("amqp://guest:guest@localhost:5672") 
-tracer = Tracer(exporter)
+wire = IsWireEnhanced(
+    user="guest",
+    password="guest",
+    host="localhost",
+    port=5672
+)
 
-with tracer.span(name="publish") as span:
-    message = Message()
-    # ...
-    # Propagates the current tracing context
-    message.inject_tracing(span) 
-    channel.publish(message, topic="Any.Topic")
+
+# Type annotations are required - they define request/reply types
+def double_value(request: Int64Value) -> Int64Value:
+    return Int64Value(value=request.value * 2)
+
+
+def to_string(request: Int64Value) -> StringValue:
+    return StringValue(value=str(request.value))
+
+
+# Register multiple services at once using a dictionary
+wire.create_rpc_service({
+    "Math.Double": double_value,
+    "Math.ToString": to_string,
+})
+
+# Or register a single service using keyword arguments
+wire.create_rpc_service(topic="Math.Double", function=double_value)
+
+# Start processing requests (blocks forever)
+wire.run()
 ```
-Or create a tracing interceptor and pass it to your ServiceProvider:
+
+#### Publishing messages
 
 ```python
-from is_wire.rpc import TracingInterceptor, ServiceProvider
+from is_wire.enhancement import IsWireEnhanced
+from is_wire.core import Message
 
-channel = Channel("amqp://guest:guest@localhost:5672") 
+wire = IsWireEnhanced(
+    user="guest",
+    password="guest",
+    host="localhost",
+    port=5672
+)
 
-provider = ServiceProvider(channel)
+message = Message()
+message.body = "Hello!".encode('latin1')
 
-tracing = TracingInterceptor(exporter)  # automatically trace requests
-provider.add_interceptor(tracing)
+# Publish to a single topic
+wire.publish("MyTopic.SubTopic", message)
+
+# Publish to multiple topics at once
+wire.publish(["Topic1", "Topic2", "Topic3"], message)
+```
+
+#### Consuming messages
+
+```python
+from is_wire.enhancement import IsWireEnhanced
+
+wire = IsWireEnhanced(
+    user="guest",
+    password="guest",
+    host="localhost",
+    port=5672
+)
+
+# Consume a single message (blocks until received)
+message = wire.consume_message("MyTopic.SubTopic")
+
+# Consume with timeout (returns None if no message received)
+message = wire.consume_message("MyTopic.SubTopic", timeout=5)
+
+# Consume multiple messages
+messages = wire.consume_message("MyTopic.SubTopic", amount=3, timeout=10)
+# Returns a list of 3 messages (or None for timeouts)
 ```
 
 ## Development
 
-### Tests
+### Prerequisites
+
+- Python 3.9 or higher
+- Docker (for running RabbitMQ)
+- pip or pipenv
+
+### Setting up the development environment
 
 ```shell
-# prepare environment
-pip install --user tox
-docker run -d --rm -p 5672:5672 -p 15672:15672 rabbitmq:3.7.6-management
+# Clone the repository
+git clone https://github.com/labvisio/is-wire-py.git
+cd is-wire-py
 
-# run all the tests
-tox
+# Create a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install the package in development mode with test dependencies
+pip install -e .
+pip install -r requirements-test.txt
 ```
+
+### Running RabbitMQ
+
+Integration tests require a running RabbitMQ instance:
+
+```shell
+docker run -d --rm -p 5672:5672 -p 15672:15672 rabbitmq:4.2.5-management
+```
+
+The RabbitMQ management UI will be available at http://localhost:15672 (guest/guest).
+
+### Running tests
+
+```shell
+# Run all tests with tox (recommended for CI)
+pip install tox
+tox
+
+```
+
+
+### Making changes
+
+1. Create a new branch for your feature or fix
+2. Make your changes and add tests
+3. Run the test suite to ensure nothing is broken
+4. Submit a pull request
+
+
+## Changelog
+
+### [2.0.0] - 2026-03-25
+
+#### Added
+- **IsWireEnhanced API**: New simplified interface for common messaging patterns
+  - Automatic URI construction and validation
+  - RPC service creation with type inference from function annotations
+  - Multi-topic publish support
+  - Simplified message consumption with timeout and batch support
+
+#### Changed
+- **Python version**: Now requires Python 3.9+ (dropped support for Python 2.7 and 3.6-3.8)
+- **Packaging**: Migrated from `setup.py` to `pyproject.toml` (PEP 517/518 compliant)
+- **Dependencies**: Replaced `six` with native Python 3 equivalents
+  - `six.moves.urllib` → `urllib.parse`
+  - `six.binary_type` → `bytes`
+  - `six.string_types` → `str`
+  - `six.raise_from()` → native `raise ... from` syntax
+- **Unit Tests**: Unit tests are now separated from integration tests run without RabbitMQ dependency
+- **Integration Tests**: New test suite marked with `@pytest.mark.integration` for IsWireEnhanced and RabbitMQ interactions
+
+#### Removed
+- **Tracing support**: Removed OpenTelemetry/OpenTracing integration
+  - Removed `Tracer` from core
+  - Removed `TracingInterceptor` from RPC
+  - Removed `extract_tracing()` and `inject_tracing()` methods from Message
+  - Removed dependencies: `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-opentracing-shim`
+- **Python 2 support**: Removed `six` dependency and Python 2 compatibility code
+
+### [1.2.1] - Previous Release
+- Last version with tracing support and Python 2.7 compatibility
