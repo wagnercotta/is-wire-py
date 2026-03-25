@@ -2,7 +2,6 @@ from ..core import Channel, Subscription, Status, StatusCode, Logger
 from ..core.utils import assert_type
 from .context import Context
 import traceback
-import six
 from google.protobuf.json_format import ParseError
 
 
@@ -20,7 +19,7 @@ class ServiceProvider(object):
     def delegate(self, topic, function, request_type, reply_type):
         """ Bind a function to a particular topic, so everytime a message is
             received in this topic the function will be called """
-        assert_type(topic, six.string_types, "topic")
+        assert_type(topic, str, "topic")
         if any(topic == s.name for s in self._subscriptions):
             raise RuntimeError(
                 "Service on topic '{}' was already delegated".format(topic))
@@ -58,7 +57,7 @@ class ServiceProvider(object):
         except KeyError as error:
             why = "Cannot serve message with subscription_id='{}'".format(
                 message.subscription_id)
-            six.raise_from(RuntimeError(why), error)
+            raise RuntimeError(why) from error
 
         reply, timeouted = service(message)
         if reply.has_topic() and not timeouted:

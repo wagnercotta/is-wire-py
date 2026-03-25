@@ -1,7 +1,6 @@
 from ..utils import assert_type
 from . import wire_pb2
 from enum import Enum
-from six import string_types
 
 
 class StatusCode(Enum):
@@ -53,5 +52,5 @@ class Status(object):
 
     @why.setter
     def why(self, reason):
-        assert_type(reason, string_types, "why")
+        assert_type(reason, str, "why")
         self._why = reason

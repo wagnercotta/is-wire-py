@@ -1,9 +1,9 @@
+from google.protobuf import json_format
+
 from ..message import Message
+from . import wire_pb2
 from .content_type import content_type_from_wire, content_type_to_wire
 from .status import Status, StatusCode
-from . import wire_pb2
-from google.protobuf import json_format
-from six import binary_type
 
 
 class WireV1(object):
@@ -12,8 +12,8 @@ class WireV1(object):
     def from_amqp_message(amqp_message):
         message = Message()
 
-        if not isinstance(amqp_message.body, binary_type):
-            message.body = amqp_message.body.encode('latin')
+        if not isinstance(amqp_message.body, bytes):
+            message.body = amqp_message.body.encode("latin")
         else:
             message.body = amqp_message.body
 
@@ -24,7 +24,8 @@ class WireV1(object):
         properties = amqp_message.properties
         if "content_type" in properties:
             message.content_type = content_type_from_wire(
-                properties["content_type"])
+                properties["content_type"]
+            )
 
         if "correlation_id" in properties:
             message.correlation_id = int(properties["correlation_id"], 16)
@@ -42,7 +43,8 @@ class WireV1(object):
             if "rpc-status" in properties["application_headers"]:
                 status = json_format.Parse(
                     properties["application_headers"]["rpc-status"],
-                    wire_pb2.Status())
+                    wire_pb2.Status(),
+                )
                 message.status = Status(
                     code=StatusCode(status.code),
                     why=status.why,
@@ -60,11 +62,13 @@ class WireV1(object):
 
         if message.has_content_type():
             properties["content_type"] = content_type_to_wire(
-                message.content_type)
+                message.content_type
+            )
 
         if message.has_correlation_id():
             properties["correlation_id"] = "{:X}".format(
-                message.correlation_id)
+                message.correlation_id
+            )
 
         if message.has_reply_to():
             properties["reply_to"] = message.reply_to
@@ -82,8 +86,10 @@ class WireV1(object):
                 code=message.status.code.value,
                 why=message.status.why,
             )
-            properties["application_headers"][
-                "rpc-status"] = json_format.MessageToJson(
-                    status, indent=0, including_default_value_fields=True)
+            properties["application_headers"]["rpc-status"] = (
+                json_format.MessageToJson(
+                    status, indent=0, always_print_fields_with_no_presence=True
+                )
+            )
 
         return properties

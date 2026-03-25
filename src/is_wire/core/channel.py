@@ -1,19 +1,22 @@
+from urllib.parse import urlparse
+
 import amqp
-from six.moves import urllib
+
 from .wire.conversion import WireV1
 
 
 class Channel(object):
 
     def __init__(self, uri="amqp://guest:guest@localhost:5672", exchange="is"):
-        url = urllib.parse.urlparse(uri)
+        url = urlparse(uri)
 
         self.connection = amqp.Connection(
             host="{}:{}".format(url.hostname or "localhost", url.port or 5672),
             userid=url.username or "guest",
             password=url.password or "guest",
-            virtual_host='/'
-            if not url.path or url.path == '/' else url.path[1:],
+            virtual_host=(
+                "/" if not url.path or url.path == "/" else url.path[1:]
+            ),
             connect_timeout=5.0,
         )
         self.connection.connect()
@@ -36,15 +39,17 @@ class Channel(object):
         self.amqp_message = message
 
     def publish(self, message, topic=None):
-        """ Publishes a message to the given topic. The topic on the message
+        """Publishes a message to the given topic. The topic on the message
         is used when no topic is passed to this function. If no valid topic is
         passed a RuntimeError is raised."""
         if not message.has_topic() and not topic:
             raise RuntimeError("Trying to publish message without topic")
 
-        amqp_message = amqp.Message(body=message.body,
-                                    channel=self._channel,
-                                    **WireV1.to_amqp_properties(message))
+        amqp_message = amqp.Message(
+            body=message.body,
+            channel=self._channel,
+            **WireV1.to_amqp_properties(message)
+        )
 
         self._channel.basic_publish(
             amqp_message,
@@ -55,7 +60,7 @@ class Channel(object):
         )
 
     def consume(self, timeout=None):
-        """ Blocks waiting for a new message to arrive. If no timeout
+        """Blocks waiting for a new message to arrive. If no timeout
         (in seconds) is provided the function blocks forever.
         Args:
             timeout (float): Period in seconds to block waiting for messages.

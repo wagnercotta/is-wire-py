@@ -1,6 +1,6 @@
 import uuid
+from datetime import datetime, timezone
 from platform import uname
-from datetime import datetime
 
 
 def new_uuid():
@@ -8,11 +8,11 @@ def new_uuid():
 
 
 def consumer_id():
-    return '{}/{:X}'.format(uname()[1], new_uuid())
+    return "{}/{:X}".format(uname()[1], new_uuid())
 
 
 def now():
-    return (datetime.utcnow() - datetime(1970, 1, 1)).total_seconds()
+    return datetime.now(timezone.utc).timestamp()
 
 
 def assert_type(instance, types, name):
@@ -24,8 +24,10 @@ def assert_type(instance, types, name):
         if isinstance(types, tuple):
             types = " or ".join([t.__name__ for t in types])
             error = "Object {} must be of types {}, received type {}".format(
-                name, types, input_type)
+                name, types, input_type
+            )
         else:
             error = "Object {} must be of type {}, received type {}".format(
-                name, types.__name__, input_type)
+                name, types.__name__, input_type
+            )
         raise TypeError(error)
