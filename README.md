@@ -343,7 +343,6 @@ tox
 
 ```
 
-
 ### Making changes
 
 1. Create a new branch for your feature or fix
@@ -370,8 +369,8 @@ tox
   - `six.moves.urllib` → `urllib.parse`
   - `six.binary_type` → `bytes`
   - `six.string_types` → `str`
-  - `six.raise_from()` → native `raise ... from` syntax
 - **Unit Tests**: Unit tests are now separated from integration tests run without RabbitMQ dependency
+  - `six.raise_from()` → native `raise ... from` syntax
 - **Integration Tests**: New test suite marked with `@pytest.mark.integration` for IsWireEnhanced and RabbitMQ interactions
 
 #### Removed
