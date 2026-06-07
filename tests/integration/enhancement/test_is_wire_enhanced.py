@@ -48,11 +48,22 @@ def test_create_rpc_service_missing_param_annotation(enhanced):
 
 
 def test_create_rpc_service_wrong_param_count(enhanced):
-    def bad_service(a: Int64Value, b: Int64Value) -> StringValue:
+    def bad_service(
+        a: Int64Value,
+        b: Int64Value,
+        c: Int64Value,
+    ) -> StringValue:
         return StringValue()
 
-    with pytest.raises(ValueError, match="exactly one parameter"):
+    with pytest.raises(ValueError, match="must accept 1 or 2 parameters"):
         enhanced.create_rpc_service({"topic": bad_service})
+
+
+def test_create_rpc_service_with_context_parameter(enhanced):
+    def my_service(request: Int64Value, context: object) -> StringValue:
+        return StringValue(value=str(request.value))
+
+    enhanced.create_rpc_service({"Enhanced.Service.Context": my_service})
 
 
 def test_create_rpc_service_multiple_topics(enhanced):
