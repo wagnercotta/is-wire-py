@@ -54,6 +54,10 @@ class IsWireEnhanced:
         self._subscription = subscription_factory(self._channel)
         self._subscribed_topics = set()
 
+    @property
+    def subscription(self) -> Subscription:
+        return self._subscription
+
     @classmethod
     def _build_uri(
         cls,
