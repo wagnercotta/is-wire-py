@@ -80,14 +80,14 @@ def test_create_rpc_service_multiple_topics(enhanced):
 
 @pytest.mark.asyncio
 async def test_publish_single_topic(enhanced, topic):
-    enhanced.subscriptions.subscribe(topic)
+    enhanced._subscription.subscribe(topic)
 
     msg = Message()
     msg.body = b"test message"
 
     enhanced.publish(topic, msg)
 
-    received = await asyncio.to_thread(enhanced.channel.consume, timeout=1.0)
+    received = await asyncio.to_thread(enhanced._channel.consume, timeout=1.0)
 
     assert received.body == b"test message"
 
@@ -97,7 +97,7 @@ async def test_publish_multiple_topics(enhanced):
     topics = ["test.multi.1", "test.multi.2", "test.multi.3"]
 
     for t in topics:
-        enhanced.subscriptions.subscribe(t)
+        enhanced._subscription.subscribe(t)
 
     msg = Message()
     msg.body = b"multi topic"
@@ -106,7 +106,9 @@ async def test_publish_multiple_topics(enhanced):
     received = []
     for _ in range(3):
         try:
-            m = await asyncio.to_thread(enhanced.channel.consume, timeout=1.0)
+            m = await asyncio.to_thread(
+                enhanced._channel.consume, timeout=1.0
+            )
             received.append(m)
         except socket.timeout:
             break
@@ -116,13 +118,13 @@ async def test_publish_multiple_topics(enhanced):
 
 @pytest.mark.asyncio
 async def test_consume_single_message(enhanced, topic):
-    enhanced.subscriptions.subscribe(topic)
+    enhanced._subscription.subscribe(topic)
 
     msg = Message()
     msg.body = b"consume test"
-    enhanced.channel.publish(msg, topic=topic)
+    enhanced._channel.publish(msg, topic=topic)
 
-    received = await asyncio.to_thread(enhanced.channel.consume, timeout=1.0)
+    received = await asyncio.to_thread(enhanced._channel.consume, timeout=1.0)
 
     assert received is not None
     assert received.body == b"consume test"
@@ -143,17 +145,19 @@ async def test_consume_message_timeout(enhanced):
 @pytest.mark.asyncio
 async def test_consume_multiple_messages(enhanced, topic):
     # Subscribe before publish
-    enhanced.subscriptions.subscribe(topic)
+    enhanced._subscription.subscribe(topic)
 
     for i in range(3):
         msg = Message()
         msg.body = f"message {i}".encode("latin")
-        enhanced.channel.publish(msg, topic=topic)
+        enhanced._channel.publish(msg, topic=topic)
 
     messages = []
     for _ in range(3):
         try:
-            m = await asyncio.to_thread(enhanced.channel.consume, timeout=1.0)
+            m = await asyncio.to_thread(
+                enhanced._channel.consume, timeout=1.0
+            )
             messages.append(m)
         except socket.timeout:
             break

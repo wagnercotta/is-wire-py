@@ -229,12 +229,31 @@ class IsWireEnhanced:
                 consumed_messages.append(None)
         return consumed_messages if amount >= 2 else consumed_messages[0]
 
-    def publish(self, topic: Union[str, list[str]], message: Message) -> None:
+    def publish(
+        self,
+        *,
+        topic: Union[str, list[str]],
+        message: Message,
+    ) -> None:
         if not isinstance(message, Message):
-            raise ValueError("message must be an is_wire.core.Message.")
+            raise TypeError(
+                f"message must be a Message instance, got {type(message).__name__}."
+            )
 
-        for t in self._normalize_topics(topic):
-            self._channel.publish(topic=t, message=message)
+        if isinstance(topic, str):
+            topics = [topic]
+        elif isinstance(topic, list) and all(
+            isinstance(item, str) for item in topic
+        ):
+            topics = topic
+        else:
+            raise TypeError("topic must be a string or a list of strings.")
+
+        if not topics:
+            raise ValueError("topic list cannot be empty.")
+
+        for current_topic in topics:
+            self.channel.publish(topic=current_topic, message=message)
 
     def close(self) -> None:
         self._channel.close()

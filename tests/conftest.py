@@ -27,7 +27,7 @@ def enhanced():
         port=5672,
     )
     yield e
-    e.channel.close()
+    e.close()
 
 
 @pytest.fixture
