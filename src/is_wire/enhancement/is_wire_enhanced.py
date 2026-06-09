@@ -257,7 +257,7 @@ class IsWireEnhanced:
             raise ValueError("topic list cannot be empty.")
 
         for current_topic in topics:
-            self.channel.publish(topic=current_topic, message=message)
+            self._channel.publish(topic=current_topic, message=message)
 
     def close(self) -> None:
         self._channel.close()
